@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+
+  web:
+    container_name: encrypt
+    image: timonier/php:nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./public:/home/www-data
+    environment:
+      - "domain=localhost"
+      - "PASSWORD=xxxxxx"
