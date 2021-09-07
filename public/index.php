@@ -9,12 +9,12 @@ const DS = '/';
 const DELETE_ACTION = 'delete';
 const LOGOUT_ACTION = 'logout';
 
-const PASSWORD_ENV = 'PASSWORD';
 const DOMAIN_ENV = 'domain';
 
 const FORM_HTML_TEMPLATE = 'form.html';
 const UPLOADS_DIR = 'uploads';
 const GPG_EXTENSION = '.gpg';
+const ADMIN_TEXT_TO_SIGN = 'Get admin access';
 
 const PUB_ID = "8308F0546637C1F37991936034E3BE38E6E11689";
 const PUB_KEY = "-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -33,7 +33,6 @@ WQgqKPzU0G7Lkv4MngJ7V/95f4Mnfa/uiFM=
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
-$password = getenv(PASSWORD_ENV);
 $isAdmin = $_SESSION['admin'] === 1;
 
 $passwordInput = $_POST['password'] ?? null;
@@ -50,9 +49,11 @@ if ($fileError > 0) {
 $uploadDir = UPLOADS_DIR . DS . str_replace(DS, '_',$fileTmp['type']);
 $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 
-// ----------------------------  MAKE ADMIN
-
-if (!empty($passwordInput) && $passwordInput === $password) {
+// ----------------------------  MAKE ADMIN WITH SIGNATURE
+if (
+    !empty($passwordInput) &&
+    verify(PUB_ID, ADMIN_TEXT_TO_SIGN, $passwordInput, PUB_KEY)
+) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
     die();
@@ -115,8 +116,10 @@ if (empty($_FILES)) {
     $admin = '<div style="text-align: left">
         <small>
           <form method="post">
-          <input class="form-control" type="password" name="password" placeholder="Password">
-          <button class="btn btn-primary btn-sm mb-3">Make admin</button>
+          <div class="input-group mb-2">
+              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'Get admin access\' | gpg --detach-sign --armor"></textarea>
+              <button class="btn btn-outline-primary">Make admin</button>
+          </div>
           </form>
         </small>
       </div>';
@@ -168,4 +171,30 @@ function encrypt(string $pubId, string $dataToEncrypt, string $pubkey = null): ?
     }
 
     return gnupg_encrypt($res, $dataToEncrypt);
+}
+
+function verify(string $pubId, string $text, string $signature, string $pubkey = null): bool
+{
+    $res = gnupg_init();
+
+    if (null !== $pubkey) {
+        $rtv = gnupg_import($res, $pubkey);
+        if (false === $rtv) {
+            return false;
+        }
+    }
+
+    $rtv = gnupg_addencryptkey($res, $pubId);
+    if (false === $rtv) {
+        return false;
+    }
+
+    $res = gnupg_verify(
+        $res,
+        $signature,
+        false,
+        $text
+    );
+
+    return $res !== false;
 }

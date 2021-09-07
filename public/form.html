@@ -10,20 +10,26 @@
 
   <title>Hello, world!</title>
 </head>
-<body>
+<body style="background-color:#ccc">
 <div class="container">
-  <h1>GPG Encript file</h1>
+  <br />
   %s
+  <hr />
+  <h1>GPG Encript file</h1>
   <form action="index.php" method="post" enctype="multipart/form-data">
-    <div class="mb-3">
+    <div class="input-group mb-2">
       <input type="file" class="form-control" id="fileToUpload" name="fileToUpload">
+      <button type="submit" class="btn btn-outline-secondary">Upload</button>
     </div>
     <div class="mb-3">
-      <button type="submit" class="btn btn-primary mb-3">Upload</button>
+
+    </div>
+    <div class="mb-3">
+
     </div>
   </form>
   <br/>
-  <div><code id="donwload_help"></code></div>
+  <div style="background-color: azure; padding: 5px"><code id="donwload_help"></code></div>
   <br/>
   <div class="list-group">
     <a href="#" class="list-group-item list-group-item-action active" aria-current="true">
