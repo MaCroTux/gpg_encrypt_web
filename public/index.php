@@ -5,6 +5,7 @@ session_start();
 const HTTP_SCHEME = 'http://';
 const GNUPGHOME = "GNUPGHOME=/tmp";
 const DS = '/';
+const UPLOAD_PATH = '/tmp/upload';
 
 const DELETE_ACTION = 'delete';
 const LOGOUT_ACTION = 'logout';
@@ -12,7 +13,6 @@ const LOGOUT_ACTION = 'logout';
 const DOMAIN_ENV = 'domain';
 
 const FORM_HTML_TEMPLATE = 'form.html';
-const UPLOADS_DIR = 'uploads';
 const GPG_EXTENSION = '.gpg';
 const ADMIN_TEXT_TO_SIGN = 'Get admin access';
 
@@ -46,7 +46,7 @@ if ($fileError > 0) {
     die('File error');
 }
 
-$uploadDir = UPLOADS_DIR . DS . str_replace(DS, '_',$fileTmp['type']);
+$uploadDir = UPLOAD_PATH . DS . str_replace(DS, '_',$fileTmp['type']);
 $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
@@ -61,7 +61,7 @@ if (
 
 // ----------------------------  DELETE FILE
 
-if ($action === DELETE_ACTION && strpos($file, 'uploads/') >= 0 && is_file($file)) {
+if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_file($file)) {
     if (!$isAdmin) {
         header('Location: ' . HTTP_SCHEME . $domain);
         die();
@@ -84,7 +84,7 @@ if ($action === LOGOUT_ACTION) {
 if (empty($_FILES)) {
     $form = file_get_contents(FORM_HTML_TEMPLATE);
     $storage = '';
-    $storage = shell_exec('find uploads/');
+    $storage = shell_exec('find ' . UPLOAD_PATH . '/');
     $storage = str_replace(PHP_EOL, ";", $storage);
     $tmp = '';
     foreach (explode(';', $storage) as $file) {
@@ -104,8 +104,8 @@ if (empty($_FILES)) {
                 %s
                  </li>',
                 basename($file),
-                $file,
-                basename(str_replace(GPG_EXTENSION, '', $file)),
+                str_replace(' ', '%20', $file),
+                basename(str_replace([' ', GPG_EXTENSION], ['_', ''], $file)),
                 HTTP_SCHEME . $domain,
                 $delete
             );
@@ -148,7 +148,7 @@ if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
 
 // ----------------------------  SAVE ENCRYPT FILE
 
-file_put_contents(__DIR__ . DS . $uploadFile, $enc);
+file_put_contents($uploadFile, $enc);
 
 header('Location: ' . HTTP_SCHEME . $domain);
 
