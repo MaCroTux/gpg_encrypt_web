@@ -17,3 +17,13 @@ In web browser type http://localhost
 ### Change admin password
 
 Goto docker-compose.yml, you can see environment `PASSWORD`
+
+### TODO:
+
+_Note: This is MVP project_
+
+* Use light framework, slim or lumen for example
+* Use SOLID practice
+* Make code with hexagonal architecture
+* Use template engine
+* Storage public key, not in hardcode
