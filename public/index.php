@@ -41,7 +41,7 @@ $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
 if (
     !empty($passwordInput) &&
-    verify(PUB_ID, ADMIN_TEXT_TO_SIGN, $passwordInput, $pubKey)
+    verify($passwordInput, $pubKey)
 ) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
@@ -104,8 +104,9 @@ if (empty($_FILES)) {
     $admin = '<div style="text-align: left">
         <small>
           <form method="post">
-          <div class="input-group mb-2">
-              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'Get admin access\' | gpg --detach-sign --armor"></textarea>
+          <div><code>echo \'Get admin access\' | gpg --clear-sign --armor</code></div> <hr />
+          <div class="input-group mb-2">              
+              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'Get admin access\' | gpg --clear-sign --armor"></textarea>
               <button class="btn btn-outline-primary">Make admin</button>
           </div>
           </form>
@@ -161,30 +162,29 @@ function encrypt(string $pubId, string $dataToEncrypt, string $pubkey = null): ?
     return gnupg_encrypt($res, $dataToEncrypt);
 }
 
-function verify(string $pubId, string $text, string $signature, string $pubkey = null): bool
+function verify(string $signature, string $pubkey = null): bool
 {
     $res = gnupg_init();
 
-    if (null !== $pubkey) {
-        $rtv = gnupg_import($res, $pubkey);
-        if (false === $rtv) {
-            return false;
-        }
-    }
+    gnupg_seterrormode($res, GNUPG_ERROR_WARNING);
 
-    $rtv = gnupg_addencryptkey($res, $pubId);
-    if (false === $rtv) {
-        return false;
-    }
+    $public = gnupg_import($res, $pubkey);
+    $publicFingerprint = $public['fingerprint'] ?? null;
 
-    $res = gnupg_verify(
-        $res,
-				$signature,
-        false,
-        $text
-		);
+    $publicsInfo = gnupg_keyinfo($res, $publicFingerprint);
+    $publicInfo = array_shift($publicsInfo);
 
-//		var_dump($res);
+    $publicSigns = array_filter($publicInfo['subkeys'] ?? [], static function (array $keys) {
+        return $keys['can_sign'] === true;
+    });
 
-    return $res !== false;
+    $publicSign = array_shift($publicSigns);
+    $publicFingerprint = $publicSign['fingerprint'];
+
+    $response = gnupg_verify($res, $signature, false);
+
+    $verify = array_shift($response);
+    $signatureFingerprint = $verify['fingerprint'];
+
+    return $publicFingerprint === $signatureFingerprint;
 }
