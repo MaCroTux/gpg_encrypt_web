@@ -16,20 +16,9 @@ const FORM_HTML_TEMPLATE = 'form.html';
 const GPG_EXTENSION = '.gpg';
 const ADMIN_TEXT_TO_SIGN = 'Get admin access';
 
-const PUB_ID = "8308F0546637C1F37991936034E3BE38E6E11689";
-const PUB_KEY = "-----BEGIN PGP PUBLIC KEY BLOCK-----
-mFIEAAAAABMIKoZIzj0DAQcCAwRcG7waIiC0F9dK9p5jGF3NyN5+9JpPGHr2BoZI
-RbYjntRtr3RgAbxtFybfzY+uPanwyuVzCZhHSN4e/bEOIOEPtCtGcmFuY2lzY28g
-SmF2aWVyIEZlcmlhIDxtYWNyb3R1eEBnbWFpbC5jb20+iIAEExMIABwFAgAAAAAC
-CwkCGwMEFQgJCgQWAgMBAheAAh4BABYJEBNsrPFuK7G5CxpUUkVaT1ItR1BHD+YB
-AMWDPuHb7dlfKfIfQHdpEd4WC9yTcCPJHFQVoUv5y2E0AP9zKzrMy1H9mOZ3XclR
-6p6AiJapJ4ixaiTvNZATGLvKBbhWBAAAAAASCCqGSM49AwEHAgME1TLSdikB5yI8
-wRgIHYVsn0V1qd3LVhJ1Uhi6ji2rgWs/nUke4IsmL848joOtFcd7tWb0WYs+d0XF
-OPIZhhRsYAMBCAeIbQQYEwgACQUCAAAAAAIbDAAWCRATbKzxbiuxuQsaVFJFWk9S
-LUdQR0a7AQDp8jECdqr6CI3I8eMxJpqvf1Ed+e4cVswfFY8SxzEp/wD+M9aMNjQU
-WQgqKPzU0G7Lkv4MngJ7V/95f4Mnfa/uiFM=
-=7cB1
------END PGP PUBLIC KEY BLOCK-----";
+const PUB_ID = "1B5A649317D1D740D76797685A726ABCF3368202";
+
+$pubKey = file_get_contents('../keys/' . PUB_ID . '.pub');
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
@@ -52,7 +41,7 @@ $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
 if (
     !empty($passwordInput) &&
-    verify(PUB_ID, ADMIN_TEXT_TO_SIGN, $passwordInput, PUB_KEY)
+    verify(PUB_ID, ADMIN_TEXT_TO_SIGN, $passwordInput, $pubKey)
 ) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
@@ -60,7 +49,6 @@ if (
 }
 
 // ----------------------------  DELETE FILE
-
 if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_file($file)) {
     if (!$isAdmin) {
         header('Location: ' . HTTP_SCHEME . $domain);
@@ -87,7 +75,7 @@ if (empty($_FILES)) {
     $storage = shell_exec('find ' . UPLOAD_PATH . '/');
     $storage = str_replace(PHP_EOL, ";", $storage);
     $tmp = '';
-    foreach (explode(';', $storage) as $file) {
+		foreach (explode(';', $storage) as $file) {
         if (is_file($file)) {
             $delete = sprintf(
                 '<a href="%s" type="button" class="btn btn-sm btn-danger">Delete</a>',
@@ -104,7 +92,7 @@ if (empty($_FILES)) {
                 %s
                  </li>',
                 basename($file),
-                str_replace(' ', '%20', $file),
+                str_replace('/tmp/upload/', 'uploads/', str_replace(' ', '%20', $file)),
                 basename(str_replace([' ', GPG_EXTENSION], ['_', ''], $file)),
                 HTTP_SCHEME . $domain,
                 $delete
@@ -138,7 +126,7 @@ if (empty($_FILES)) {
 $rawFile = file_get_contents($fileTmp['tmp_name']);
 
 $enc = (null);
-$enc = encrypt(PUB_ID, $rawFile, PUB_KEY);
+$enc = encrypt(PUB_ID, $rawFile, $pubKey);
 if (null === $enc) {
     echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
     die();
@@ -191,10 +179,12 @@ function verify(string $pubId, string $text, string $signature, string $pubkey =
 
     $res = gnupg_verify(
         $res,
-        $signature,
+				$signature,
         false,
         $text
-    );
+		);
+
+//		var_dump($res);
 
     return $res !== false;
 }
