@@ -16,9 +16,7 @@ const FORM_HTML_TEMPLATE = 'form.html';
 const GPG_EXTENSION = '.gpg';
 const ADMIN_TEXT_TO_SIGN = 'Get admin access';
 
-const PUB_ID = "1B5A649317D1D740D76797685A726ABCF3368202";
-
-$pubKey = file_get_contents('../keys/' . PUB_ID . '.pub');
+$pubKeys = glob('../keys/*.pub');
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
@@ -33,6 +31,13 @@ $fileError = $fileTmp['error'];
 
 if ($fileError > 0) {
     die('File error');
+}
+
+$idPubKey = $_POST['pub_key'] ?? false;
+$pubKeyId = null;
+if (($idPubKey ?? false) && is_file('../keys/' . $idPubKey . '.pub')) {
+    $pubKey = file_get_contents('../keys/' . $idPubKey . '.pub');
+    [$name, $pubKeyId] = explode('-', $idPubKey);
 }
 
 $uploadDir = UPLOAD_PATH . DS . str_replace(DS, '_',$fileTmp['type']);
@@ -72,7 +77,6 @@ if ($action === LOGOUT_ACTION) {
 }
 
 // ----------------------------  UPLOAD FILE
-
 if (empty($_FILES)) {
     $form = file_get_contents(FORM_HTML_TEMPLATE);
     $storage = '';
@@ -123,15 +127,24 @@ if (empty($_FILES)) {
         </div>';
     }
 
-    die(sprintf($form, $admin, $tmp));
+    $keysList = array_map(
+        function(string $file) {
+            $file = str_replace(['../keys/', '.pub'], ['', ''], $file);
+            [$name, $id] = explode('-', $file);
+
+            return '<option value="' . $file . '">' . $name . '</option>';
+        },
+        $pubKeys
+    );
+
+    die(sprintf($form, $admin, implode('', $keysList), $tmp));
 }
 
 // ----------------------------  ENCRYPT FILE
-
 $rawFile = file_get_contents($fileTmp['tmp_name']);
 
 $enc = (null);
-$enc = encrypt(PUB_ID, $rawFile, $pubKey);
+$enc = encrypt($pubKeyId, $rawFile, $pubKey);
 if (null === $enc) {
     echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
     die();
