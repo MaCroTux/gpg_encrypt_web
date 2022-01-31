@@ -1,4 +1,4 @@
-# GPG Encrypt Web
+# GPG Encrypt Web (Prototype - old PHP)
 
 ## PHP Encrypt file with GPG and persist
 
