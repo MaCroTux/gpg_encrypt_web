@@ -137,11 +137,17 @@ if (empty($_FILES)) {
         $pubKeys
     );
 
+    $keysList = array_merge(['<option>Select pub key to encrypt</option>'], $keysList);
+
     die(sprintf($form, $admin, implode('', $keysList), $tmp));
 }
 
 // ----------------------------  ENCRYPT FILE
 $rawFile = file_get_contents($fileTmp['tmp_name']);
+
+if (null === $pubKey) {
+    die('Pub key invalid <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
+}
 
 $enc = (null);
 $enc = encrypt($pubKeyId, $rawFile, $pubKey);
