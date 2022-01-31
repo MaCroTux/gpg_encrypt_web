@@ -39,14 +39,18 @@ $uploadDir = UPLOAD_PATH . DS . str_replace(DS, '_',$fileTmp['type']);
 $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
+$accessAdmin = ADMIN_TEXT_TO_SIGN . ' ' . substr(hash('sha256', time()), 0 ,6);
 if (
     !empty($passwordInput) &&
-    verify($passwordInput, $pubKey)
+    verify($passwordInput, $pubKey, ADMIN_TEXT_TO_SIGN)
 ) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
     die();
+} else {
+    $_SESSION['ADMIN_ACCESS_PASS'] = $accessAdmin;
 }
+
 
 // ----------------------------  DELETE FILE
 if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_file($file)) {
@@ -104,9 +108,9 @@ if (empty($_FILES)) {
     $admin = '<div style="text-align: left">
         <small>
           <form method="post">
-          <div><code>echo \'Get admin access\' | gpg --clear-sign --armor</code></div> <hr />
+          <div><code>echo \'' . $accessAdmin . '\' | gpg --clear-sign --armor</code></div> <hr />
           <div class="input-group mb-2">              
-              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'Get admin access\' | gpg --clear-sign --armor"></textarea>
+              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'' . $accessAdmin . '\' | gpg --clear-sign --armor"></textarea>
               <button class="btn btn-outline-primary">Make admin</button>
           </div>
           </form>
@@ -162,7 +166,7 @@ function encrypt(string $pubId, string $dataToEncrypt, string $pubkey = null): ?
     return gnupg_encrypt($res, $dataToEncrypt);
 }
 
-function verify(string $signature, string $pubkey = null): bool
+function verify(string $signature, string $pubkey = null, string $signedText): bool
 {
     $res = gnupg_init();
 
@@ -186,5 +190,6 @@ function verify(string $signature, string $pubkey = null): bool
     $verify = array_shift($response);
     $signatureFingerprint = $verify['fingerprint'];
 
-    return $publicFingerprint === $signatureFingerprint;
+    return $publicFingerprint === $signatureFingerprint
+        && strpos($signature, $signedText) !== false;
 }
