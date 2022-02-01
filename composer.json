@@ -1,0 +1,9 @@
+{
+    "name": "root/www-data",
+    "autoload": {
+        "psr-4": {
+            "Encrypt\\": "src/"
+        }
+    },
+    "require": {}
+}

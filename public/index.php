@@ -1,5 +1,10 @@
 <?php
 
+
+include '../vendor/autoload.php';
+
+use Encrypt\Application\UseCase\HomeScreenUseCase;
+
 session_start();
 
 const HTTP_SCHEME = 'http://';
@@ -76,70 +81,10 @@ if ($action === LOGOUT_ACTION) {
     header('Location: ' . HTTP_SCHEME . $domain);
 }
 
-// ----------------------------  UPLOAD FILE
+// ----------------------------  FILES
 if (empty($_FILES)) {
     $form = file_get_contents(FORM_HTML_TEMPLATE);
-    $storage = '';
-    $storage = shell_exec('find ' . UPLOAD_PATH . '/');
-    $storage = str_replace(PHP_EOL, ";", $storage);
-    $tmp = '';
-		foreach (explode(';', $storage) as $file) {
-        if (is_file($file)) {
-            $delete = sprintf(
-                '<a href="%s" type="button" class="btn btn-sm btn-danger">Delete</a>',
-                HTTP_SCHEME . $domain . DS . '?a=delete&f=' . $file
-            );
-
-            if (!$isAdmin) {
-                $delete = null;
-            }
-
-            $tmp .= sprintf('<li class="list-group-item d-flex justify-content-between align-items-center">
-                <a href="#" class="">%s</a> 
-                <a href="#" data-gpgfile="%s" data-file="%s" data-domain="%s" type="button" class="download btn btn-sm btn-success">Download</a>
-                %s
-                 </li>',
-                basename($file),
-                str_replace('/tmp/upload/', 'uploads/', str_replace(' ', '%20', $file)),
-                basename(str_replace([' ', GPG_EXTENSION], ['_', ''], $file)),
-                HTTP_SCHEME . $domain,
-                $delete
-            );
-
-        }
-    }
-
-    $admin = '<div style="text-align: left">
-        <small>
-          <form method="post">
-          <div><code>echo \'' . $accessAdmin . '\' | gpg --clear-sign --armor</code></div> <hr />
-          <div class="input-group mb-2">              
-              <textarea rows="1" class="form-control" type="password" name="password" placeholder="Use and paste: echo \'' . $accessAdmin . '\' | gpg --clear-sign --armor"></textarea>
-              <button class="btn btn-outline-primary">Make admin</button>
-          </div>
-          </form>
-        </small>
-      </div>';
-
-    if ($isAdmin) {
-        $admin = '<div style="text-align: left">
-            <small>You are Admin! <a href="' . HTTP_SCHEME . $domain . DS . '?a=logout' . '">Exit</a></small>
-        </div>';
-    }
-
-    $keysList = array_map(
-        function(string $file) {
-            $file = str_replace(['../keys/', '.pub'], ['', ''], $file);
-            [$name, $id] = explode('-', $file);
-
-            return '<option value="' . $file . '">' . $name . '</option>';
-        },
-        $pubKeys
-    );
-
-    $keysList = array_merge(['<option>Select pub key to encrypt</option>'], $keysList);
-
-    die(sprintf($form, $admin, implode('', $keysList), $tmp));
+    die((new HomeScreenUseCase(getenv(DOMAIN_ENV), $isAdmin))->__invoke());
 }
 
 // ----------------------------  ENCRYPT FILE
