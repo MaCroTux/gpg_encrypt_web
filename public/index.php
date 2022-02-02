@@ -4,6 +4,7 @@
 include '../vendor/autoload.php';
 
 use Encrypt\Application\UseCase\AdminAccessUseCase;
+use Encrypt\Application\UseCase\EncryptFileUseCase;
 use Encrypt\Application\UseCase\HomeScreenUseCase;
 use Encrypt\Domain\Admin\GenerateAdminAccessService;
 use Encrypt\Infrastructure\Encrypt\FileEncryptService;
@@ -27,14 +28,16 @@ const DOMAIN_ENV = 'domain';
 
 const GPG_EXTENSION = '.gpg';
 
+putenv(GNUPGHOME);
+$domain = getenv(DOMAIN_ENV);
+$isAdmin = $_SESSION['admin'] === 1;
+
 $fileGpgRepository = new FileGPGSearchRepository();
 $sessionAccessAdmin = new SessionAccessAdminRepository($_SESSION);
 $filePubKeysRepository = new FilePubKeysRepository();
 $fileVerifySignService = new FileVerifySignService();
+$fileEncryptService = new FileEncryptService($filePubKeysRepository, $domain);
 
-putenv(GNUPGHOME);
-$domain = getenv(DOMAIN_ENV);
-$isAdmin = $_SESSION['admin'] === 1;
 
 $passwordInput = $_POST['password'] ?? null;
 $action = $_GET['a'] ?? null;
@@ -101,16 +104,9 @@ if (empty($_FILES)) {
 }
 
 // ----------------------------  ENCRYPT FILE
-$fileEncryptService = new FileEncryptService($filePubKeysRepository, $domain);
-
 try {
-    $encryptFileContent = $fileEncryptService->__invoke($fileTmp['tmp_name'], $idPubKey);
-    $fileGpgRepository->saveGpgFile($fileTmp['name'], $fileTmp['type'], $encryptFileContent);
-
-    if (null === $encryptFileContent) {
-        echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
-        die();
-    }
+    $encryptFileUseCase = new EncryptFileUseCase($fileEncryptService, $fileGpgRepository);
+    $encryptFileUseCase->__invoke($idPubKey, $fileTmp['tmp_name'], $fileTmp['name'], $fileTmp['type']);
 } catch (Exception $e) {
     die($e->getMessage() . ' <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
 }
