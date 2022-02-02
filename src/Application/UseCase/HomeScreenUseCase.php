@@ -9,7 +9,6 @@ use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
 class HomeScreenUseCase
 {
     private const UPLOAD_PATH = '/tmp/upload';
-    private const ADMIN_TEXT_TO_SIGN = 'Get admin access';
 
     /** @var FileGPGSearchRepository */
     private $fileRepository;
@@ -19,13 +18,16 @@ class HomeScreenUseCase
     private $domain;
     /** @var HomeScreenTemplate */
     private $homeScreenTemplate;
+    /** @var string */
+    private $adminAccess;
 
-    public function __construct(string $domain, bool $isAdmin)
+    public function __construct(string $domain, bool $isAdmin, string $adminAccess)
     {
         $this->fileRepository = new FileGPGSearchRepository(self::UPLOAD_PATH);
         $this->filePubKeysRepository = new FilePubKeysRepository();
         $this->homeScreenTemplate = new HomeScreenTemplate($domain, $isAdmin);
         $this->domain = $domain;
+        $this->adminAccess = $adminAccess;
     }
 
     public function __invoke(): string
@@ -35,7 +37,7 @@ class HomeScreenUseCase
         return $this->homeScreenTemplate->html(
             $filesEncrypt,
             $this->filePubKeysRepository->all(),
-            self::ADMIN_TEXT_TO_SIGN . ' ' . substr(hash('sha256', time()), 0 ,6)
+            $this->adminAccess
         );
     }
 }
