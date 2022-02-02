@@ -3,18 +3,18 @@
 namespace Encrypt\Application\UseCase;
 
 use Encrypt\Infrastructure\Encrypt\FileEncryptService;
-use Encrypt\Infrastructure\Persistence\Repository\FileGPGSearchRepository;
+use Encrypt\Infrastructure\Persistence\Repository\FileGpgRepository;
 
 class EncryptFileUseCase
 {
     /** @var FileEncryptService */
     private $fileEncryptService;
-    /** @var FileGPGSearchRepository */
+    /** @var FileGpgRepository */
     private $fileGPGSearchRepository;
 
     public function __construct(
         FileEncryptService $fileEncryptService,
-        FileGPGSearchRepository $fileGPGSearchRepository
+        FileGpgRepository $fileGPGSearchRepository
     ) {
         $this->fileEncryptService = $fileEncryptService;
         $this->fileGPGSearchRepository = $fileGPGSearchRepository;

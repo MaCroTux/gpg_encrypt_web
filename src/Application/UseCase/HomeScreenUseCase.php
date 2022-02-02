@@ -2,13 +2,13 @@
 
 namespace Encrypt\Application\UseCase;
 
-use Encrypt\Infrastructure\Persistence\Repository\FileGPGSearchRepository;
+use Encrypt\Infrastructure\Persistence\Repository\FileGpgRepository;
 use Encrypt\Infrastructure\Persistence\Repository\FilePubKeysRepository;
 use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
 
 class HomeScreenUseCase
 {
-    /** @var FileGPGSearchRepository */
+    /** @var FileGpgRepository */
     private $fileGpgRepository;
     /** @var FilePubKeysRepository */
     private $filePubKeysRepository;
@@ -18,7 +18,7 @@ class HomeScreenUseCase
     private $domain;
 
     public function __construct(
-        FileGPGSearchRepository $fileGpgRepository,
+        FileGpgRepository $fileGpgRepository,
         FilePubKeysRepository $filePubKeysRepository,
         HomeScreenTemplate $homeScreenTemplate,
         string $domain

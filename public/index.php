@@ -4,12 +4,13 @@
 include '../vendor/autoload.php';
 
 use Encrypt\Application\UseCase\AdminAccessUseCase;
+use Encrypt\Application\UseCase\DeleteGpgFileUseCase;
 use Encrypt\Application\UseCase\EncryptFileUseCase;
 use Encrypt\Application\UseCase\HomeScreenUseCase;
 use Encrypt\Domain\Admin\GenerateAdminAccessService;
 use Encrypt\Infrastructure\Encrypt\FileEncryptService;
 use Encrypt\Infrastructure\InSession\Repository\SessionAccessAdminRepository;
-use Encrypt\Infrastructure\Persistence\Repository\FileGPGSearchRepository;
+use Encrypt\Infrastructure\Persistence\Repository\FileGpgRepository;
 use Encrypt\Infrastructure\Persistence\Repository\FilePubKeysRepository;
 use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
 use Encrypt\Infrastructure\Verify\FileVerifySignService;
@@ -17,7 +18,6 @@ use Encrypt\Infrastructure\Verify\FileVerifySignService;
 session_start();
 
 const HTTP_SCHEME = 'http://';
-const GNUPGHOME = "GNUPGHOME=/tmp";
 const DS = '/';
 const UPLOAD_PATH = '/tmp/upload';
 
@@ -28,11 +28,11 @@ const DOMAIN_ENV = 'domain';
 
 const GPG_EXTENSION = '.gpg';
 
-putenv(GNUPGHOME);
+putenv("GNUPGHOME=/tmp");
 $domain = getenv(DOMAIN_ENV);
 $isAdmin = $_SESSION['admin'] === 1;
 
-$fileGpgRepository = new FileGPGSearchRepository();
+$fileGpgRepository = new FileGpgRepository();
 $sessionAccessAdmin = new SessionAccessAdminRepository($_SESSION);
 $filePubKeysRepository = new FilePubKeysRepository();
 $fileVerifySignService = new FileVerifySignService();
@@ -71,13 +71,14 @@ if (!empty($passwordInput) && $adminAccessUseCase->__invoke($passwordInput)) {
 }
 
 // ----------------------------  DELETE FILE
-if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_file($file)) {
-    if (!$isAdmin) {
-        header('Location: ' . HTTP_SCHEME . $domain);
-        die();
+if ($action === DELETE_ACTION) {
+    try {
+        $deleteGpgFileUseCase = new DeleteGpgFileUseCase($fileGpgRepository, $isAdmin);
+        $deleteGpgFileUseCase->__invoke($file);
+    } catch (Exception $e) {
+        die($e->getMessage() . ' <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
     }
 
-    @unlink($file);
     header('Location: ' . HTTP_SCHEME . $domain);
     die();
 }
@@ -87,6 +88,7 @@ if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_fil
 if ($action === LOGOUT_ACTION) {
     $sessionAccessAdmin->deleteAdminSession();
     header('Location: ' . HTTP_SCHEME . $domain);
+    die();
 }
 
 // ----------------------------  FILES
