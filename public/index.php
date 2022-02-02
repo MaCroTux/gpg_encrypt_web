@@ -11,6 +11,7 @@ use Encrypt\Infrastructure\InSession\Repository\SessionAccessAdminRepository;
 use Encrypt\Infrastructure\Persistence\Repository\FileGPGSearchRepository;
 use Encrypt\Infrastructure\Persistence\Repository\FilePubKeysRepository;
 use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
+use Encrypt\Infrastructure\Verify\FileVerifySignService;
 
 session_start();
 
@@ -29,6 +30,7 @@ const GPG_EXTENSION = '.gpg';
 $fileGpgRepository = new FileGPGSearchRepository();
 $sessionAccessAdmin = new SessionAccessAdminRepository($_SESSION);
 $filePubKeysRepository = new FilePubKeysRepository();
+$fileVerifySignService = new FileVerifySignService();
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
@@ -51,7 +53,12 @@ $pubKeyAdmin = file_get_contents('../keys/YubiKey-1B5A649317D1D740D76797685A726A
 $accessAdmin = (new GenerateAdminAccessService())->__invoke();
 
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
-$adminAccessUseCase = new AdminAccessUseCase($sessionAccessAdmin, $domain, $pubKeyAdmin);
+$adminAccessUseCase = new AdminAccessUseCase(
+    $fileVerifySignService,
+    $sessionAccessAdmin,
+    $domain,
+    $pubKeyAdmin
+);
 if (!empty($passwordInput) && $adminAccessUseCase->__invoke($passwordInput)) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
@@ -59,7 +66,6 @@ if (!empty($passwordInput) && $adminAccessUseCase->__invoke($passwordInput)) {
 } else {
     $_SESSION['ADMIN_ACCESS_PASS'] = $accessAdmin;
 }
-
 
 // ----------------------------  DELETE FILE
 if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_file($file)) {
@@ -105,38 +111,8 @@ try {
         echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
         die();
     }
-} catch (\Exception $e) {
+} catch (Exception $e) {
     die($e->getMessage() . ' <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
 }
 
 header('Location: ' . HTTP_SCHEME . $domain);
-
-// ----------------------------  FUNCTIONS
-
-function verify(string $signature, string $pubkey = null, string $signedText): bool
-{
-    $res = gnupg_init();
-
-    gnupg_seterrormode($res, GNUPG_ERROR_WARNING);
-
-    $public = gnupg_import($res, $pubkey);
-    $publicFingerprint = $public['fingerprint'] ?? null;
-
-    $publicsInfo = gnupg_keyinfo($res, $publicFingerprint);
-    $publicInfo = array_shift($publicsInfo);
-
-    $publicSigns = array_filter($publicInfo['subkeys'] ?? [], static function (array $keys) {
-        return $keys['can_sign'] === true;
-    });
-
-    $publicSign = array_shift($publicSigns);
-    $publicFingerprint = $publicSign['fingerprint'];
-
-    $response = gnupg_verify($res, $signature, false);
-
-    $verify = array_shift($response);
-    $signatureFingerprint = $verify['fingerprint'];
-
-    return $publicFingerprint === $signatureFingerprint
-        && strpos($signature, $signedText) !== false;
-}

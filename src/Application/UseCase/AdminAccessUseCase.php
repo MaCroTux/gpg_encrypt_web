@@ -3,6 +3,7 @@
 namespace Encrypt\Application\UseCase;
 
 use Encrypt\Infrastructure\InSession\Repository\SessionAccessAdminRepository;
+use Encrypt\Infrastructure\Verify\FileVerifySignService;
 
 class AdminAccessUseCase
 {
@@ -10,12 +11,13 @@ class AdminAccessUseCase
     private $domain;
     /** @var string */
     private $adminPubKey;
-    /**
-     * @var SessionAccessAdminRepository
-     */
+    /** @var SessionAccessAdminRepository */
     private $accessAdminRepository;
+    /** @var FileVerifySignService */
+    private $fileVerifySignService;
 
     public function __construct(
+        FileVerifySignService $fileVerifySignService,
         SessionAccessAdminRepository $accessAdminRepository,
         string $domain,
         string $adminPubKey
@@ -23,13 +25,18 @@ class AdminAccessUseCase
         $this->accessAdminRepository = $accessAdminRepository;
         $this->domain = $domain;
         $this->adminPubKey = $adminPubKey;
+        $this->fileVerifySignService = $fileVerifySignService;
     }
 
     public function __invoke(?string $passwordInput = null): bool
     {
         if (
             !empty($passwordInput) &&
-            verify($passwordInput, $this->adminPubKey, $this->accessAdminRepository->getAdminAccessPass())
+            $this->fileVerifySignService->__invoke(
+                $passwordInput,
+                $this->adminPubKey,
+                $this->accessAdminRepository->getAdminAccessPass()
+            )
         ) {
             return true;
         }
