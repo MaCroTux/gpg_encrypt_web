@@ -5,6 +5,8 @@ include '../vendor/autoload.php';
 
 use Encrypt\Application\UseCase\AdminAccessUseCase;
 use Encrypt\Application\UseCase\HomeScreenUseCase;
+use Encrypt\Domain\Admin\GenerateAdminAccessService;
+use Encrypt\Infrastructure\InSession\Repository\SessionAccessAdminRepository;
 
 session_start();
 
@@ -18,9 +20,9 @@ const LOGOUT_ACTION = 'logout';
 
 const DOMAIN_ENV = 'domain';
 
-const FORM_HTML_TEMPLATE = 'form.html';
 const GPG_EXTENSION = '.gpg';
-const ADMIN_TEXT_TO_SIGN = 'Get admin access';
+
+$sessionAccessAdmin = new SessionAccessAdminRepository($_SESSION);
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
@@ -49,11 +51,11 @@ $pubKeyAdmin = file_get_contents('../keys/YubiKey-1B5A649317D1D740D76797685A726A
 $uploadDir = UPLOAD_PATH . DS . str_replace(DS, '_',$fileTmp['type']);
 $uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 
-$accessAdmin = ADMIN_TEXT_TO_SIGN . ' ' . substr(hash('sha256', time()), 0 ,6);
+$accessAdmin = (new GenerateAdminAccessService())->__invoke();
 
 // ----------------------------  MAKE ADMIN WITH SIGNATURE
-$adminAccessUseCase = new AdminAccessUseCase($domain, $pubKeyAdmin);
-if (!empty($passwordInput) && $adminAccessUseCase->__invoke($_SESSION['ADMIN_ACCESS_PASS'], $passwordInput)) {
+$adminAccessUseCase = new AdminAccessUseCase($sessionAccessAdmin, $domain, $pubKeyAdmin);
+if (!empty($passwordInput) && $adminAccessUseCase->__invoke($passwordInput)) {
     $_SESSION['admin'] = 1;
     header('Location: ' . HTTP_SCHEME . $domain);
     die();
@@ -83,7 +85,6 @@ if ($action === LOGOUT_ACTION) {
 
 // ----------------------------  FILES
 if (empty($_FILES)) {
-    $form = file_get_contents(FORM_HTML_TEMPLATE);
     die((new HomeScreenUseCase(
         getenv(DOMAIN_ENV),
         $isAdmin,

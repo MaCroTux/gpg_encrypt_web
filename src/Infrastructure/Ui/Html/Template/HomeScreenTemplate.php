@@ -51,11 +51,8 @@ class HomeScreenTemplate
         }
 
         $keysList = array_map(
-            function(string $file) {
-                $file = str_replace(['../keys/', '.pub'], ['', ''], $file);
-                [$name, $id] = explode('-', $file);
-
-                return '<option value="' . $file . '">' . $name . '</option>';
+            function(array $pubKey) {
+                return '<option value="' . $pubKey['file'] . '">' . $pubKey['name'] . '</option>';
             },
             $pubKeys
         );
