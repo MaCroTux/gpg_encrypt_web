@@ -6,7 +6,11 @@ include '../vendor/autoload.php';
 use Encrypt\Application\UseCase\AdminAccessUseCase;
 use Encrypt\Application\UseCase\HomeScreenUseCase;
 use Encrypt\Domain\Admin\GenerateAdminAccessService;
+use Encrypt\Infrastructure\Encrypt\FileEncryptService;
 use Encrypt\Infrastructure\InSession\Repository\SessionAccessAdminRepository;
+use Encrypt\Infrastructure\Persistence\Repository\FileGPGSearchRepository;
+use Encrypt\Infrastructure\Persistence\Repository\FilePubKeysRepository;
+use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
 
 session_start();
 
@@ -22,7 +26,9 @@ const DOMAIN_ENV = 'domain';
 
 const GPG_EXTENSION = '.gpg';
 
+$fileGpgRepository = new FileGPGSearchRepository();
 $sessionAccessAdmin = new SessionAccessAdminRepository($_SESSION);
+$filePubKeysRepository = new FilePubKeysRepository();
 
 putenv(GNUPGHOME);
 $domain = getenv(DOMAIN_ENV);
@@ -40,16 +46,7 @@ if ($fileError > 0) {
 }
 
 $idPubKey = $_POST['pub_key'] ?? false;
-$pubKeyId = null;
-if (($idPubKey ?? false) && is_file('../keys/' . $idPubKey . '.pub')) {
-    $pubKey = file_get_contents('../keys/' . $idPubKey . '.pub');
-    [$name, $pubKeyId] = explode('-', $idPubKey);
-}
-
 $pubKeyAdmin = file_get_contents('../keys/YubiKey-1B5A649317D1D740D76797685A726ABCF3368202.pub');
-
-$uploadDir = UPLOAD_PATH . DS . str_replace(DS, '_',$fileTmp['type']);
-$uploadFile = $uploadDir . DS . $fileTmp['name'] . GPG_EXTENSION;
 
 $accessAdmin = (new GenerateAdminAccessService())->__invoke();
 
@@ -79,61 +76,42 @@ if ($action === DELETE_ACTION && strpos($file, UPLOAD_PATH . '/') >= 0 && is_fil
 // ----------------------------  LOGOUT ACTION
 
 if ($action === LOGOUT_ACTION) {
-    $_SESSION['admin'] = null;
+    $sessionAccessAdmin->deleteAdminSession();
     header('Location: ' . HTTP_SCHEME . $domain);
 }
 
 // ----------------------------  FILES
 if (empty($_FILES)) {
-    die((new HomeScreenUseCase(
-        getenv(DOMAIN_ENV),
-        $isAdmin,
-        $accessAdmin
-    ))->__invoke());
-}
+    $homeScreenUseCase = new HomeScreenUseCase(
+        $fileGpgRepository,
+        $filePubKeysRepository,
+        new HomeScreenTemplate($domain, $isAdmin),
+        getenv(DOMAIN_ENV)
+    );
 
-// ----------------------------  ENCRYPT FILE
-$rawFile = file_get_contents($fileTmp['tmp_name']);
+    echo $homeScreenUseCase->__invoke($isAdmin, $accessAdmin);
 
-if (null === $pubKey) {
-    die('Pub key invalid <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
-}
-
-$enc = (null);
-$enc = encrypt($pubKeyId, $rawFile, $pubKey);
-if (null === $enc) {
-    echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
     die();
 }
 
-if (!is_dir($uploadDir)) { mkdir($uploadDir, 0777, true); }
+// ----------------------------  ENCRYPT FILE
+$fileEncryptService = new FileEncryptService($filePubKeysRepository, $domain);
 
-// ----------------------------  SAVE ENCRYPT FILE
+try {
+    $encryptFileContent = $fileEncryptService->__invoke($fileTmp['tmp_name'], $idPubKey);
+    $fileGpgRepository->saveGpgFile($fileTmp['name'], $fileTmp['type'], $encryptFileContent);
 
-file_put_contents($uploadFile, $enc);
+    if (null === $encryptFileContent) {
+        echo 'Decrypt: ERROR <br/><br/> <a href="' . HTTP_SCHEME . $domain . '">Back</a>';
+        die();
+    }
+} catch (\Exception $e) {
+    die($e->getMessage() . ' <a href="' . HTTP_SCHEME . $domain . '">Back</a>');
+}
 
 header('Location: ' . HTTP_SCHEME . $domain);
 
 // ----------------------------  FUNCTIONS
-
-function encrypt(string $pubId, string $dataToEncrypt, string $pubkey = null): ?string
-{
-    $res = gnupg_init();
-
-    if (null !== $pubkey) {
-        $rtv = gnupg_import($res, $pubkey);
-        if (false === $rtv) {
-            return null;
-        }
-    }
-
-    $rtv = gnupg_addencryptkey($res, $pubId);
-    if (false === $rtv) {
-        return null;
-    }
-
-    return gnupg_encrypt($res, $dataToEncrypt);
-}
 
 function verify(string $signature, string $pubkey = null, string $signedText): bool
 {

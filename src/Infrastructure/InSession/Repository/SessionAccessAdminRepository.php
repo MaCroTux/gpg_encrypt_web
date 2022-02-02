@@ -16,4 +16,9 @@ class SessionAccessAdminRepository
     {
         return $_SESSION['ADMIN_ACCESS_PASS'] ?? null;
     }
+
+    public function deleteAdminSession(): void
+    {
+        $_SESSION['admin'] = null;
+    }
 }

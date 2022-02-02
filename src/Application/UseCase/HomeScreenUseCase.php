@@ -8,36 +8,35 @@ use Encrypt\Infrastructure\Ui\Html\Template\HomeScreenTemplate;
 
 class HomeScreenUseCase
 {
-    private const UPLOAD_PATH = '/tmp/upload';
-
     /** @var FileGPGSearchRepository */
-    private $fileRepository;
+    private $fileGpgRepository;
     /** @var FilePubKeysRepository */
     private $filePubKeysRepository;
-    /** @var string */
-    private $domain;
     /** @var HomeScreenTemplate */
     private $homeScreenTemplate;
     /** @var string */
-    private $adminAccess;
+    private $domain;
 
-    public function __construct(string $domain, bool $isAdmin, string $adminAccess)
-    {
-        $this->fileRepository = new FileGPGSearchRepository(self::UPLOAD_PATH);
-        $this->filePubKeysRepository = new FilePubKeysRepository();
-        $this->homeScreenTemplate = new HomeScreenTemplate($domain, $isAdmin);
+    public function __construct(
+        FileGPGSearchRepository $fileGpgRepository,
+        FilePubKeysRepository $filePubKeysRepository,
+        HomeScreenTemplate $homeScreenTemplate,
+        string $domain
+    ) {
+        $this->fileGpgRepository = $fileGpgRepository;
+        $this->filePubKeysRepository = $filePubKeysRepository;
+        $this->homeScreenTemplate = $homeScreenTemplate;
         $this->domain = $domain;
-        $this->adminAccess = $adminAccess;
     }
 
-    public function __invoke(): string
+    public function __invoke(bool $isAdmin, string $adminAccess): string
     {
-        $filesEncrypt = $this->fileRepository->getAll();
+        $filesEncrypt = $this->fileGpgRepository->getAll();
 
         return $this->homeScreenTemplate->html(
             $filesEncrypt,
             $this->filePubKeysRepository->all(),
-            $this->adminAccess
+            $adminAccess
         );
     }
 }

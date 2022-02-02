@@ -6,6 +6,11 @@ class FilePubKeysRepository
 {
     public function all(): array
     {
+        return $this->getReadableKeys();
+    }
+
+    private function getReadableKeys(): array
+    {
         $pubKeys = glob('../keys/*.pub');
 
         $pubKeysReadable = array_filter(
@@ -16,6 +21,29 @@ class FilePubKeysRepository
         );
 
         return array_map($this->formatter(), $pubKeysReadable);
+    }
+
+    /**
+     * @param string $keyId
+     * @return array|null
+     * @throws \Exception
+     */
+    public function getId(string $keyId): ?array
+    {
+        $pubKeysReadable = $this->getReadableKeys();
+
+        $pubKeysFilter = array_filter(
+            $pubKeysReadable,
+            static function (array $keys) use ($keyId) {
+                return strpos($keys['file'], $keyId) !== false;
+            }
+        );
+
+        if (empty($pubKeysFilter)) {
+            throw new \Exception('Pub key invalid');
+        }
+
+        return current($pubKeysFilter);
     }
 
     private function formatter(): callable
@@ -29,6 +57,7 @@ class FilePubKeysRepository
                 'name' => $name,
                 'file' => $name . '-' . $id,
                 'fullPath' => $fileKey,
+                'content' => file_get_contents($fileKey),
             ];
         };
     }
